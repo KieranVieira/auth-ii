@@ -8,7 +8,10 @@ const router = express.Router();
 const generateToken = user => {
     const payload = {
         subject: user.id,
-        username: user.username
+        username: user.username,
+        roles: [
+            'teacher'
+        ]
     }
     const options = {
         expiresIn: '1d',
@@ -33,6 +36,18 @@ const restricted = (req,res,next) => {
         res.status(400).json({
             message: "Bad request, please provide token in authorization headers"
         })
+    }
+}
+
+const checkRoles = roles => {
+    return (req,res,next) => {
+        if(req.decodedJwt.roles.includes(roles)){
+            next();
+        }else{
+            res.status(403).json({
+                message: "You are unauthorized to do this"
+            })
+        }
     }
 }
 
@@ -87,7 +102,7 @@ router.post('/login', (req, res) => {
         })
 })
 
-router.get('/users', restricted, (req, res) => {
+router.get('/users', restricted, checkRoles('student'), (req, res) => {
     db('users')
         .then(users => {
             res.status(200).json(users)
