@@ -9,9 +9,7 @@ const generateToken = user => {
     const payload = {
         subject: user.id,
         username: user.username,
-        roles: [
-            'teacher'
-        ]
+        department: user.department
     }
     const options = {
         expiresIn: '1d',
@@ -25,7 +23,7 @@ const restricted = (req,res,next) => {
         jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
             if(err){
                 res.status(401).json({
-                    message: "I know who you are but you arent authorized to do this"
+                    message: "You arent authorized to do this"
                 })
             }else{
                 req.decodedJwt = decodedToken;
@@ -39,17 +37,20 @@ const restricted = (req,res,next) => {
     }
 }
 
-const checkRoles = roles => {
-    return (req,res,next) => {
-        if(req.decodedJwt.roles.includes(roles)){
-            next();
-        }else{
-            res.status(403).json({
-                message: "You are unauthorized to do this"
-            })
-        }
+const checkDepartment = (req,res,next) => {
+    if(req.decodedJwt.department === 'finance'){
+        req.department = 'finance'
+        next();
+    }else if(req.decodedJwt.department === 'sales'){
+        req.department = 'sales'
+        next();
+    }else{
+        res.status(403).json({
+            message: "You are not in a department, contact your administrator"
+        })
     }
 }
+
 
 router.post('/register', (req, res) => {
     try {
@@ -102,8 +103,9 @@ router.post('/login', (req, res) => {
         })
 })
 
-router.get('/users', restricted, checkRoles('student'), (req, res) => {
+router.get('/users', restricted, checkDepartment, (req, res) => {
     db('users')
+        .where({department: req.department})
         .then(users => {
             res.status(200).json(users)
         })
