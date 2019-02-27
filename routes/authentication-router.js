@@ -13,7 +13,27 @@ const generateToken = user => {
     const options = {
         expiresIn: '1d',
     }
-    jwt.sign(payload, secret, options)
+    return jwt.sign(payload, process.env.JWT_SECRET, options)
+}
+
+const restricted = (req,res,next) => {
+    const token = req.headers.authorization
+    if(token){
+        jwt.verify(token, process.env.JWT_SECRET, (err, decodedToken) => {
+            if(err){
+                res.status(401).json({
+                    message: "I know who you are but you arent authorized to do this"
+                })
+            }else{
+                req.decodedJwt = decodedToken;
+                next();
+            }
+        })
+    }else{
+        res.status(400).json({
+            message: "Bad request, please provide token in authorization headers"
+        })
+    }
 }
 
 router.post('/register', (req, res) => {
@@ -67,8 +87,17 @@ router.post('/login', (req, res) => {
         })
 })
 
-router.get('/users', (req, res) => {
-    res.send('this is a route')
+router.get('/users', restricted, (req, res) => {
+    db('users')
+        .then(users => {
+            res.status(200).json(users)
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: "Server could not get user data",
+                error
+            })
+        })
 })
 
 module.exports = router;
